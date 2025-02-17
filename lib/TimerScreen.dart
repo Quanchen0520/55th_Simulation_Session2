@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart'; // 加速度感應器
 import 'ClockPainter.dart';
+import 'TaskStorage.dart';
 
 class TimerScreen extends StatefulWidget {
   @override
@@ -181,7 +182,6 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
                             builder: (BuildContext context) {
                               int workMinutes = 15; // 預設工作時間
                               int restMinutes = 3;  // 預設休息時間
-
                               return StatefulBuilder( // 讓 setState() 正常運作
                                 builder: (context, setState) {
                                   return AlertDialog(
@@ -226,7 +226,8 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
                                         child: Text("取消"),
                                       ),
                                       TextButton(
-                                        onPressed: () {
+                                        onPressed: () async {
+                                          await TaskStorage.saveTask(workMinutes, restMinutes);
                                           Navigator.pop(context);
                                         },
                                         child: Text("確定"),
