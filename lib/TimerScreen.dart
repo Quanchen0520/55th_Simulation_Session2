@@ -148,111 +148,138 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
   void TaskShow() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // 允許全螢幕
+      isScrollControlled: true,
       builder: (BuildContext context) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.5, // 預設高度（50%螢幕）
-          minChildSize: 0.3, // 最小高度（30%螢幕）
-          maxChildSize: 1.0, // 最大高度（全螢幕）
+          initialChildSize: 0.5,
+          minChildSize: 0.3,
+          maxChildSize: 1.0,
           expand: false,
           builder: (context, scrollController) {
-            return Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: ListView(
-                controller: scrollController, // 讓內容可滾動
-                children: [
-                  Row(
+            return FutureBuilder<List<Map<String, dynamic>>>(
+              future: TaskStorage.loadTasks(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text("載入失敗"));
+                }
+
+                List<Map<String, dynamic>> tasks = snapshot.data ?? [];
+
+                return Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  child: Column(
                     children: [
-                      Text(
-                        '任務清單',
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold
-                        ),
-                      ),
-                      Spacer(),
-                      TextButton(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (BuildContext context) {
-                              int workMinutes = 15; // 預設工作時間
-                              int restMinutes = 3;  // 預設休息時間
-                              return StatefulBuilder( // 讓 setState() 正常運作
-                                builder: (context, setState) {
-                                  return AlertDialog(
-                                    title: Text("新增任務"),
-                                    content: Column(
-                                      mainAxisSize: MainAxisSize.min, // 讓對話框高度符合內容
-                                      children: [
-                                        Text("工作時間"),
-                                        Slider(
-                                          value: workMinutes.toDouble(),
-                                          min: 5,
-                                          max: 25,
-                                          divisions: 4,
-                                          label: "$workMinutes min",
-                                          onChanged: (value) {
-                                            setState(() {
-                                              workMinutes = value.toInt();
-                                            });
-                                          },
-                                        ),
-                                        SizedBox(height: 10), // 增加間距
-                                        Text("休息時間"),
-                                        Slider(
-                                          value: restMinutes.toDouble(),
-                                          min: 3,
-                                          max: 5,
-                                          divisions: 2,
-                                          label: "$restMinutes min",
-                                          onChanged: (value) {
-                                            setState(() {
-                                              restMinutes = value.toInt();
-                                            });
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () {
-                                          Navigator.pop(context);
-                                        },
-                                        child: Text("取消"),
-                                      ),
-                                      TextButton(
-                                        onPressed: () async {
-                                          await TaskStorage.saveTask(workMinutes, restMinutes);
-                                          Navigator.pop(context);
-                                        },
-                                        child: Text("確定"),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
+                      Row(
+                        children: [
+                          Text(
+                            '任務清單',
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                          Spacer(),
+                          TextButton(
+                            onPressed: () {
+                              _showAddTaskDialog(context); // 這裡不呼叫 TaskShow()，讓對話框自己處理
                             },
-                          );
-                        },
-                          child: Text("新增任務")
+                            child: Text("新增任務"),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 10),
+                      Expanded(
+                        child: ListView.builder(
+                          controller: scrollController,
+                          itemCount: tasks.length,
+                          itemBuilder: (context, index) {
+                            final task = tasks[index];
+                            return ListTile(
+                              title: Text("工作 ${task["workMinutes"]} 分鐘"),
+                              subtitle: Text("休息 ${task["restMinutes"]} 分鐘"),
+                            );
+                          },
+                        ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 10),
-                  ListTile(title: Text('任務 1')),
-                  ListTile(title: Text('任務 2')),
-                  ListTile(title: Text('任務 3')),
-                ],
-              ),
+                );
+              },
             );
           },
         );
       },
     );
   }
+
+  void _showAddTaskDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        int workMinutes = 15;
+        int restMinutes = 3;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text("新增任務"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text("工作時間"),
+                  Slider(
+                    value: workMinutes.toDouble(),
+                    min: 5,
+                    max: 25,
+                    divisions: 4,
+                    label: "$workMinutes min",
+                    onChanged: (value) {
+                      setState(() {
+                        workMinutes = value.toInt();
+                      });
+                    },
+                  ),
+                  SizedBox(height: 10),
+                  Text("休息時間"),
+                  Slider(
+                    value: restMinutes.toDouble(),
+                    min: 3,
+                    max: 5,
+                    divisions: 2,
+                    label: "$restMinutes min",
+                    onChanged: (value) {
+                      setState(() {
+                        restMinutes = value.toInt();
+                      });
+                    },
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text("取消"),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await TaskStorage.saveTask(workMinutes, restMinutes);
+                    Navigator.pop(context);
+                    Navigator.pop(context);
+                    TaskShow(); // 重新打開 TaskShow() 更新畫面
+                  },
+                  child: Text("確定"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
 }
