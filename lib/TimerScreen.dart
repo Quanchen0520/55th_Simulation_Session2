@@ -145,29 +145,21 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     );
   }
 
-  void TaskShow() {
+  void TaskShow() async {
+    List<Map<String, dynamic>> tasks = await TaskStorage.loadTasks(); // 先載入任務
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (BuildContext context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.5,
-          minChildSize: 0.3,
-          maxChildSize: 1.0,
-          expand: false,
-          builder: (context, scrollController) {
-            return FutureBuilder<List<Map<String, dynamic>>>(
-              future: TaskStorage.loadTasks(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text("載入失敗"));
-                }
-
-                List<Map<String, dynamic>> tasks = snapshot.data ?? [];
-
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.5,
+              minChildSize: 0.3,
+              maxChildSize: 1.0,
+              expand: false,
+              builder: (context, scrollController) {
                 return Container(
                   padding: EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -176,6 +168,7 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
                   ),
                   child: Column(
                     children: [
+                      // 標題 + 新增按鈕
                       Row(
                         children: [
                           Text(
@@ -185,14 +178,25 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
                           Spacer(),
                           TextButton(
                             onPressed: () {
-                              _showAddTaskDialog(context); // 這裡不呼叫 TaskShow()，讓對話框自己處理
+                              _showAddTaskDialog(context, setState); // 傳遞 setState 來更新清單
                             },
                             child: Text("新增任務"),
                           ),
                         ],
                       ),
                       SizedBox(height: 10),
-                      Expanded(
+
+                      // 如果任務清單為空，顯示提示
+                      tasks.isEmpty
+                          ? Expanded(
+                        child: Center(
+                          child: Text(
+                            "目前沒有任務，請新增！",
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
+                          ),
+                        ),
+                      )
+                          : Expanded(
                         child: ListView.builder(
                           controller: scrollController,
                           itemCount: tasks.length,
@@ -216,7 +220,7 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     );
   }
 
-  void _showAddTaskDialog(BuildContext context) {
+  void _showAddTaskDialog(BuildContext context, StateSetter refreshTaskList) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -268,6 +272,7 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
                 TextButton(
                   onPressed: () async {
                     await TaskStorage.saveTask(workMinutes, restMinutes);
+                    refreshTaskList(() {}); // 更新清單，不影響拖曳
                     Navigator.pop(context);
                     Navigator.pop(context);
                     TaskShow(); // 重新打開 TaskShow() 更新畫面
