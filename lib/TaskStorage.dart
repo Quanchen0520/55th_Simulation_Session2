@@ -26,4 +26,20 @@ class TaskStorage {
 
     return parsedTasks;
   }
+
+  static Future<void> deleteTask(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // 讀取現有任務列表
+    List<String> tasks = prefs.getStringList("tasks") ?? [];
+
+    // 確保索引有效
+    if (index >= 0 && index < tasks.length) {
+      // 刪除指定索引的任務
+      tasks.removeAt(index);
+
+      // 保存更新後的任務列表
+      await prefs.setStringList("tasks", tasks);
+    }
+  }
 }
